@@ -6,6 +6,9 @@
 #include "vulkanWrapper/window.h"
 #include "vulkanWrapper/windowSurface.h"
 #include "vulkanWrapper/swapChain.h"
+#include "vulkanWrapper/shader.h"
+#include "vulkanWrapper/pipeline.h"
+#include "vulkanWrapper/renderpass.h"
 
 namespace FF {
 
@@ -31,10 +34,17 @@ namespace FF {
 		void cleanUp();
 
 	private:
+		void createPipeline();
+
+		void createRenderPass();
+
+	private:
 		Wrapper::Window::Ptr myWindow{ nullptr };
 		Wrapper::Instance::Ptr myInstance{ nullptr };
 		Wrapper::Device::Ptr myDevice{ nullptr };
 		Wrapper::WindowSurface::Ptr mySurface{ nullptr };
 		Wrapper::SwapChain::Ptr mySwapChain{ nullptr };
+		Wrapper::Pipeline::Ptr myPipeline{ nullptr };
+		Wrapper::RenderPass::Ptr myRenderPass{ nullptr };
 	};
 }
