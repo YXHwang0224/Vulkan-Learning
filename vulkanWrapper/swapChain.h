@@ -4,6 +4,7 @@
 #include "device.h"
 #include "window.h"
 #include "windowSurface.h"
+#include "renderpass.h"
 
 namespace FF::Wrapper {
 
@@ -33,6 +34,12 @@ namespace FF::Wrapper {
 		//选择交换链中图像的大小
 		VkExtent2D chooseExtent(const VkSurfaceCapabilitiesKHR& capabilities);
 
+		void createFrameBuffer(const RenderPass::Ptr &renderPass);
+
+		[[nodiscard]] auto getFormat() const {
+			return mySwapChainFormat;
+		}
+
 	private:
 		//用于建立ImageView的辅助函数，输入图片，格式与ImageView管理的板块（颜色、深度...），和mipmap级别
 		VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels = 1);
@@ -47,6 +54,8 @@ namespace FF::Wrapper {
 		//vkimage由swapchain创建，亦由其销毁，ImageView用于管理Image
 		std::vector<VkImage> mySwapChainImages{};
 		std::vector<VkImageView> mySwapChainImageViews{};	
+
+		std::vector<VkFramebuffer> mySwapChainFrameBuffers{};
 
 		Device::Ptr myDevice{ nullptr };
 		Window::Ptr myWindow{ nullptr };

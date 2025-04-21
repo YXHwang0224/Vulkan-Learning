@@ -23,6 +23,7 @@ namespace FF::Wrapper {
 
 		//检测是否支持validationLayer
 		bool checkValidationLayerSupport();
+
 		//设置myDebugger
 		void setupDebugger();
 

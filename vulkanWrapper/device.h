@@ -13,7 +13,7 @@ namespace FF::Wrapper {
 		static Ptr create(Instance::Ptr instance, WindowSurface::Ptr surface) {
 			return std::make_shared<Device>(instance, surface);
 		}
-
+		
 		Device(Instance::Ptr instance, WindowSurface::Ptr surface);
 
 		~Device();

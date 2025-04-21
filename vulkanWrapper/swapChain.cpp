@@ -84,6 +84,11 @@ namespace FF::Wrapper {
 		for (auto& imageView : mySwapChainImageViews) {
 			vkDestroyImageView(myDevice->getDevice(), imageView, nullptr);
 		}
+
+		for (auto& frameBuffer : mySwapChainFrameBuffers) {
+			vkDestroyFramebuffer(myDevice->getDevice(), frameBuffer, nullptr);
+		}
+
 		if (mySwapChain != VK_NULL_HANDLE) {
 			vkDestroySwapchainKHR(myDevice->getDevice(), mySwapChain, nullptr);
 			myWindow.reset();
@@ -188,5 +193,28 @@ namespace FF::Wrapper {
 		}
 
 		return imageView;
+	}
+
+	void SwapChain::createFrameBuffer(const RenderPass::Ptr& renderPass) {
+		//创建FrameBuffer
+		mySwapChainFrameBuffers.resize(myImageCount);
+		for (int i = 0; i < myImageCount; ++i) {
+			//FrameBuffer中是一帧的数据，比如含有n个ColorAttachment，1个DepthStencilAttachment，
+			//这些东西的集合为一个FrameBuffer，送入管线就会形成一个GPU集合，由上方的Attachments构成
+			std::array<VkImageView, 1>attachments = { mySwapChainImageViews[i] };
+
+			VkFramebufferCreateInfo frameBufferCreateInfo{};
+			frameBufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+			frameBufferCreateInfo.renderPass = renderPass->getRenderPass();
+			frameBufferCreateInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+			frameBufferCreateInfo.pAttachments = attachments.data();
+			frameBufferCreateInfo.width = mySwapChainExtent.width;
+			frameBufferCreateInfo.height = mySwapChainExtent.height;
+			frameBufferCreateInfo.layers = 1;
+
+			if (vkCreateFramebuffer(myDevice->getDevice(), &frameBufferCreateInfo, nullptr, &mySwapChainFrameBuffers[i]) != VK_SUCCESS) {
+				throw std::runtime_error("Error: failed to create frameBufffer");
+			}
+		}
 	}
 }

@@ -52,14 +52,13 @@ namespace FF::Wrapper {
 		int score = 0;
 
 		VkPhysicalDeviceProperties deviceProp;		//显卡属性
-		vkGetPhysicalDeviceProperties(device, &deviceProp);		//获取显卡属性（设备名称，类型，支持Vulkan的版本
+		vkGetPhysicalDeviceProperties(device, &deviceProp);		//获取显卡属性（设备名称，类型，支持Vulkan的版本)
 
 		VkPhysicalDeviceFeatures deviceFeatures;	//显卡特性
-		vkGetPhysicalDeviceFeatures(device, &deviceFeatures);	//获取显卡特性（纹理压缩，浮点数运算特性，多视口渲染
+		vkGetPhysicalDeviceFeatures(device, &deviceFeatures);	//获取显卡特性（纹理压缩，浮点数运算特性，多视口渲染)
 
 		if (deviceProp.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
 			score += 1000;
-
 		}
 
 		score += deviceProp.limits.maxImageDimension2D;		//最大支持多大的纹理
@@ -115,7 +114,7 @@ namespace FF::Wrapper {
 	void Device::createLogicalDevice() {
 		std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
 
-		std::set<uint32_t> queueFamilies = { myGraphicQueueFamily.value(),myPresentQueueFamily.value()};
+		std::set<uint32_t> queueFamilies = { myGraphicQueueFamily.value(),myPresentQueueFamily.value() };
 
 		float queuePriority = 1.0;			//优先值
 
