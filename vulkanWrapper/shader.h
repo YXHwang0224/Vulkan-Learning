@@ -5,6 +5,8 @@
 
 namespace FF::Wrapper {
 
+	//读取shader文件建立shader，在Shader类中存储shader类别和入口
+
 	class Shader {
 	public:
 		using Ptr = std::shared_ptr<Shader>;
@@ -16,9 +18,15 @@ namespace FF::Wrapper {
 
 		~Shader();
 
-		[[nodiscard]] auto getShaderStage() const { return myShaderStage; }
-		[[nodiscard]] auto& getShaderEntryPoint() const { return myEntryPoint; }
-		[[nodiscard]] auto getShaderModule() const { return myShaderModule; }
+		[[nodiscard]] auto getShaderStage() const { 
+			return myShaderStage; 
+		}
+		[[nodiscard]] auto& getShaderEntryPoint() const { 
+			return myEntryPoint; 
+		}
+		[[nodiscard]] auto getShaderModule() const { 
+			return myShaderModule; 
+		}
 
 	private:
 		VkShaderModule myShaderModule{ VK_NULL_HANDLE };

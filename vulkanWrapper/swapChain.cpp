@@ -15,7 +15,7 @@ namespace FF::Wrapper {
 		//选择extent
 		VkExtent2D extent = chooseExtent(swapChainSupportInfo.myCapabilities);
 
-		//设置图像缓存数量
+		//设置图像缓冲数量
 		myImageCount = swapChainSupportInfo.myCapabilities.minImageCount + 1;
 
 		//这一个要求反映了maxImageCount为0时，可取任意数量的ImageCount
@@ -33,7 +33,7 @@ namespace FF::Wrapper {
 		createInfo.imageColorSpace = surfaceFormat.colorSpace;
 		createInfo.imageExtent = extent;
 		createInfo.imageArrayLayers = 1;		//图像包含的层次，VR一般有两个（左右眼）
-		createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;	//交换链生成的图像用处（此处是表示颜色，还有的如表示深度缓存等等）
+		createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;	//交换链生成的图像用处（此处是表示颜色，还有的如表示深度缓冲等等）
 
 		//因为交换链的图像，会用来被渲染或者显示，而渲染和显示使用不一样的队列，
 		//所以会出现同一个图像被两个队列使用，所以我们需要让图像对他们俩都兼容
@@ -70,7 +70,6 @@ namespace FF::Wrapper {
 		//系统可能创建更多的image，当前的ImageCount是最小数量
 		vkGetSwapchainImagesKHR(myDevice->getDevice(), mySwapChain, &myImageCount, nullptr);
 		mySwapChainImages.resize(myImageCount);
-
 		vkGetSwapchainImagesKHR(myDevice->getDevice(), mySwapChain, &myImageCount, mySwapChainImages.data());
 
 		//创建Image View
@@ -128,8 +127,7 @@ namespace FF::Wrapper {
 		}
 
 		for (const auto& aviliableFromat : aviliableFromats) {
-			if (aviliableFromat.format == VK_FORMAT_B8G8R8A8_SRGB&& 
-				aviliableFromat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+			if ((aviliableFromat.format == VK_FORMAT_B8G8R8A8_SRGB) && (aviliableFromat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)) {
 				return aviliableFromat;
 			}
 		}

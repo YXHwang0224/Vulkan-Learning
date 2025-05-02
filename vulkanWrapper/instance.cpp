@@ -43,7 +43,7 @@ namespace FF::Wrapper {
 	}
 
 	Instance::Instance(bool enableValidationLayer) {
-		//Vulkan里面生成任何handle（句柄）都需要提供一个Info，而后使用一种Creat函数生成
+		//Vulkan里面生成任何handle（句柄）都需要提供一个Info，而后使用一种Create函数生成
 
 		myEnableValidationLayer = enableValidationLayer;		//确认是否开启验证层
 
@@ -68,8 +68,6 @@ namespace FF::Wrapper {
 		instCreateInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
 		instCreateInfo.ppEnabledExtensionNames = extensions.data();
 
-		printAvailableExtensions();
-
 		//检验层相关
 		if (myEnableValidationLayer) {
 			instCreateInfo.enabledLayerCount = static_cast<uint32_t>(validationLayer.size());
@@ -83,6 +81,7 @@ namespace FF::Wrapper {
 		}
 
 		setupDebugger();
+		printAvailableExtensions();
 	}
 
 	Instance::~Instance() {
@@ -93,7 +92,6 @@ namespace FF::Wrapper {
 	void Instance::printAvailableExtensions() {
 		uint32_t extensionCount = 0;
 		vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);		//获取扩展的数量（第二个参数）与具体的扩展数组（第三个参数）
-
 		std::vector<VkExtensionProperties> extensions(extensionCount);
 		vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());	//将扩展放入extensions中
 
@@ -119,7 +117,6 @@ namespace FF::Wrapper {
 	bool Instance::checkValidationLayerSupport() {
 		uint32_t layerCount = 0;
 		vkEnumerateInstanceLayerProperties(&layerCount, nullptr);		//获取layer的数量
-
 		std::vector<VkLayerProperties> availablelayers(layerCount);
 		vkEnumerateInstanceLayerProperties(&layerCount, availablelayers.data());
 

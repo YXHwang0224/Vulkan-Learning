@@ -5,6 +5,9 @@
 
 namespace FF::Wrapper {
 
+	//SubPass中获取该subpass需要的颜色附件，输入附件，深度与模板附件，并以此建立对于该subpass的descirption
+	//RenderPass则使用subpass的description集，依赖关系以及自己的附件建立
+
 	/*
 	1.Attachment:
 	VkAttachmentDescription 用以描述附着的结构，即告诉外界我这个附着需要什么

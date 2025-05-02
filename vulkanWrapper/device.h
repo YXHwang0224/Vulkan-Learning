@@ -5,6 +5,9 @@
 #include "windowSurface.h"
 
 namespace FF::Wrapper {
+
+	//选择PhysicalDevice，选择具有渲染和显示功能的队列族，并使用这些队列族建立队列
+	//使用物理设备信息，拓展信息，队列信息，Layer层信息，设备特征去建立LogicalDevice
 	
 	class Device {
 	public:
@@ -45,6 +48,14 @@ namespace FF::Wrapper {
 
 		[[nodiscard]] std::optional<uint32_t> getPresentQueueFamily() {
 			return myPresentQueueFamily;
+		}
+
+		[[nodiscard]] auto getGraphicQueue() {
+			return myGraphicQueue;
+		}
+
+		[[nodiscard]] auto getPresentQueue() {
+			return myPresentQueue;
 		}
 
 	private:

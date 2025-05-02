@@ -5,6 +5,9 @@
 #include "window.h"
 
 namespace FF::Wrapper {
+
+	//使用Instance和window建立surface
+
 	class WindowSurface {
 	public:
 		using Ptr = std::shared_ptr<WindowSurface>;

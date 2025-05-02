@@ -8,10 +8,10 @@ namespace FF::Wrapper {
 	public:
 		using Ptr = std::shared_ptr<Window>;
 		static Ptr create(const int& width, const int& height) {
-			return std::make_shared<Window>(width,height);
+			return std::make_shared<Window>(width, height);
 		}
 
-		Window(const int &width,const int &height);
+		Window(const int& width, const int& height);
 
 		~Window();
 
@@ -23,6 +23,8 @@ namespace FF::Wrapper {
 			return myWindow;
 		}
 
+	public:
+		bool myWindowResized{ false };
 	private:
 		GLFWwindow* myWindow{ nullptr };
 		int myWidth{ 0 };

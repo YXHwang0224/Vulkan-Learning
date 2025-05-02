@@ -83,9 +83,7 @@ namespace FF::Wrapper {
 	void Device::initQueueFamilies(VkPhysicalDevice device) {
 		uint32_t queueFamilyCount = 0;
 		vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
-
 		std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-
 		vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 		
 		int i = 0;	//计数队列族的索引
@@ -114,7 +112,7 @@ namespace FF::Wrapper {
 	void Device::createLogicalDevice() {
 		std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
 
-		std::set<uint32_t> queueFamilies = { myGraphicQueueFamily.value(),myPresentQueueFamily.value() };
+		std::set<uint32_t> queueFamilies = { myGraphicQueueFamily.value(), myPresentQueueFamily.value() };
 
 		float queuePriority = 1.0;			//优先值
 
@@ -130,15 +128,16 @@ namespace FF::Wrapper {
 		}
 
 		//填写逻辑设备创建信息
+		VkDeviceCreateInfo deviceCreatInfo = {};
+
 		VkPhysicalDeviceFeatures deviceFeatures = {};
 		
-		VkDeviceCreateInfo deviceCreatInfo = {};
 		deviceCreatInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-		deviceCreatInfo.pQueueCreateInfos = queueCreateInfos.data();
 		deviceCreatInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
-		deviceCreatInfo.pEnabledFeatures = &deviceFeatures;
+		deviceCreatInfo.pQueueCreateInfos = queueCreateInfos.data();
 		deviceCreatInfo.enabledExtensionCount = static_cast<uint32_t>(deciceRequiredExtensions.size());
 		deviceCreatInfo.ppEnabledExtensionNames = deciceRequiredExtensions.data();
+		deviceCreatInfo.pEnabledFeatures = &deviceFeatures;
 
 		//layer层
 		if (myInstance->getEnableValidationLayer()) {

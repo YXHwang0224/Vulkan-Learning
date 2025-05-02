@@ -66,7 +66,7 @@ namespace FF::Wrapper {
 		pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 		pipelineCreateInfo.stageCount = static_cast<uint32_t>(shaderCreateInfos.size());
 		pipelineCreateInfo.pStages = shaderCreateInfos.data();
-
+		
 		pipelineCreateInfo.pVertexInputState = &myVertexInputState;
 		pipelineCreateInfo.pInputAssemblyState = &myAssemblyState;
 		pipelineCreateInfo.pViewportState = &myViewportState;
@@ -77,12 +77,12 @@ namespace FF::Wrapper {
 		pipelineCreateInfo.layout = myLayout;
 		pipelineCreateInfo.renderPass = myRenderPass->getRenderPass();
 		pipelineCreateInfo.subpass = 0;
-
+		
 		//以存在的pipeline为基础进行创建，会更快，但是需要指定flags
 		pipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE;
 		pipelineCreateInfo.basePipelineIndex = -1;
 
-		//pipeline cache：可以将相关文件存入缓存，在多个pipeline中使用，也可以存到文件不同程序调用
+		//pipeline cache：可以将相关文件存入缓冲，在多个pipeline中使用，也可以存到文件不同程序调用
 		if (myPipeline != VK_NULL_HANDLE) {
 			vkDestroyPipeline(myDevice->getDevice(), myPipeline, nullptr);
 		}

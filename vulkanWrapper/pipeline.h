@@ -29,6 +29,13 @@ namespace FF::Wrapper {
 
 		void build();
 
+		[[nodiscard]] auto getPipeline() const {
+			return myPipeline;
+		}
+		[[nodiscard]] auto getLayout() const {
+			return myLayout;
+		}
+
 	public:
 		VkPipelineVertexInputStateCreateInfo myVertexInputState{};
 		VkPipelineInputAssemblyStateCreateInfo myAssemblyState{};

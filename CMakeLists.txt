@@ -18,6 +18,6 @@ aux_source_directory(. DIRSRCS)								#扫描该文件夹下所有文件加入DIRSRCS
 
 add_subdirectory(vulkanWrapper)								#检索vulkanWrapper这一文件夹
 
-add_executable(vulkan-1  ${DIRSRCS} "application.h" "application.cpp" "vulkanWrapper/instance.h" "vulkanWrapper/instance.cpp")				#使用DIRSRCS创建可执行程序
+add_executable(vulkan-1  ${DIRSRCS} "application.h" "application.cpp" "vulkanWrapper/instance.h" "vulkanWrapper/instance.cpp" "model.h" "vulkanWrapper/description.h" "uniformManager.h" "uniformManager.cpp")				#使用DIRSRCS创建可执行程序
 
 target_link_libraries(vulkan-1 vulkan-1.lib glfw3.lib vulkanLib)						#将引入库加入可执行文件

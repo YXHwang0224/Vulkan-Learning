@@ -3,12 +3,15 @@
 #include "../base.h"
 
 namespace FF::Wrapper {
+
+	//Instance包含了Application相关信息，Layer层相关信息（其create和destroy函数需要取出），拓展相关信息
+
 	class Instance 
 	{
 	public:
 		using Ptr = std::shared_ptr<Instance>;
 
-		static Ptr creat(bool enableValidationLayer) {
+		static Ptr create(bool enableValidationLayer) {
 			return std::make_shared<Instance>(enableValidationLayer);
 		}
 
