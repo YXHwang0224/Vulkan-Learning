@@ -1,4 +1,3 @@
-
 #include "commandpool.h"
 
 namespace FF::Wrapper {

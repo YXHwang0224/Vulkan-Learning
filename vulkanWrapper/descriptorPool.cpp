@@ -18,9 +18,13 @@ namespace FF::Wrapper {
 		
 		//uniform缓冲有多少
 		int uniformBufferCount = 0;
+		int textureCount = 0;
 		for (const auto& parameter : parameters) {
 			if (parameter->myDescriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
 				uniformBufferCount++;
+			}
+			if (parameter->myDescriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
+				textureCount++;
 			}
 		}
 		//纹理种类的uniform有多少
@@ -32,6 +36,11 @@ namespace FF::Wrapper {
 		uniformBufferSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		uniformBufferSize.descriptorCount = uniformBufferCount * frameCount;
 		poolSize.push_back(uniformBufferSize);
+
+		VkDescriptorPoolSize textureSize{};
+		textureSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		textureSize.descriptorCount = textureCount * frameCount; 	
+		poolSize.push_back(textureSize);
 
 		//创建Pool
 		VkDescriptorPoolCreateInfo createInfo{};

@@ -18,7 +18,7 @@ namespace FF::Wrapper {
 		Instance(bool enableValidationLayer);
 		~Instance();
 
-		//返回有多少种扩展
+		//打印所有扩展
 		void printAvailableExtensions();
 
 		//返回我们想要开启的扩展

@@ -1,10 +1,11 @@
 #include "swapChain.h"
 
 namespace FF::Wrapper {
-	SwapChain::SwapChain(const Device::Ptr& device, const Window::Ptr& window, const WindowSurface::Ptr& surface) {
+	SwapChain::SwapChain(const Device::Ptr& device, const Window::Ptr& window, const WindowSurface::Ptr& surface, const CommandPool::Ptr& commandPool) {
 		myDevice = device;
 		myWindow = window;
 		mySurface = surface;
+		myCommandPool = commandPool;
 
 		SwapChainSupportInfo swapChainSupportInfo = querySwapChainSupportInfo();
 
@@ -77,6 +78,49 @@ namespace FF::Wrapper {
 		for (int i = 0; i < myImageCount; ++i) {
 			mySwapChainImageViews[i] = createImageView(mySwapChainImages[i], mySwapChainFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 		}
+
+		myDepthImages.resize(myImageCount);
+
+		VkImageSubresourceRange region{};
+		region.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+		region.baseArrayLayer = 0;
+		region.baseMipLevel = 0;
+		region.layerCount = 1;
+		region.levelCount = 1;
+
+		for (int i = 0; i < myImageCount; ++i) {
+			myDepthImages[i] = Image::createDepthImage(myDevice, mySwapChainExtent.width, mySwapChainExtent.height, myDevice->getMaxUsableSampleCount());
+
+			myDepthImages[i]->setImageLayout(
+				VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+				VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+				VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+				region,
+				commandPool
+			);
+		}
+
+		myMutiSampleImages.resize(myImageCount);
+
+		VkImageSubresourceRange regionMutiSample{};
+		regionMutiSample.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		regionMutiSample.baseArrayLayer = 0;
+		regionMutiSample.baseMipLevel = 0;
+		regionMutiSample.layerCount = 1;
+		regionMutiSample.levelCount = 1;
+
+		for (int i = 0; i < myImageCount; ++i) {
+			myMutiSampleImages[i] = Image::createRenderTargetImage(myDevice, mySwapChainExtent.width, mySwapChainExtent.height, mySwapChainFormat);
+
+			myMutiSampleImages[i]->setImageLayout(
+				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+				VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+				VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+				regionMutiSample,
+				commandPool
+			);
+		}
+
 	}
 
 	SwapChain::~SwapChain() {
@@ -199,7 +243,11 @@ namespace FF::Wrapper {
 		for (int i = 0; i < myImageCount; ++i) {
 			//FrameBuffer中是一帧的数据，比如含有n个ColorAttachment，1个DepthStencilAttachment，
 			//这些东西的集合为一个FrameBuffer，送入管线就会形成一个GPU集合，由上方的Attachments构成
-			std::array<VkImageView, 1>attachments = { mySwapChainImageViews[i] };
+			std::array<VkImageView, 3>attachments = { 
+				mySwapChainImageViews[i], 
+				myMutiSampleImages[i]->getImageView(),
+				myDepthImages[i]->getImageView()
+			};
 
 			VkFramebufferCreateInfo frameBufferCreateInfo{};
 			frameBufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;

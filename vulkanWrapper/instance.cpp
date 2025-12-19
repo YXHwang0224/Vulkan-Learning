@@ -57,14 +57,14 @@ namespace FF::Wrapper {
 		appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);	//使用VK_MAKE_VERSION函数对appInfo的版本进行设置
 		appInfo.pEngineName = "No Engine";						//引擎名（此处不考虑）
 		appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);		//引擎版本
-		appInfo.apiVersion = VK_API_VERSION_1_0;					//Vulkan API的版本
+		appInfo.apiVersion = VK_API_VERSION_1_0;				//Vulkan API的版本
 
 		VkInstanceCreateInfo instCreateInfo = {};				//创建Instance时使用的信息体
 		instCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 		instCreateInfo.pApplicationInfo = &appInfo;				//将VkApplicationInfo（指针）绑定到instCreateInfo
 
 		//扩展相关
-		std::vector<const char*> extensions = getRequiredExtensions();		
+		std::vector<const char*> extensions = getRequiredExtensions();
 		instCreateInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
 		instCreateInfo.ppEnabledExtensionNames = extensions.data();
 

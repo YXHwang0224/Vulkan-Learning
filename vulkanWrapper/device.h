@@ -34,6 +34,8 @@ namespace FF::Wrapper {
 		//返回所有队列族条件是否全部找到符合的队列族的辅助函数
 		bool isQueueFamilyComplete();
 
+		VkSampleCountFlagBits getMaxUsableSampleCount();	//获取最大可用采样数
+
 		[[nodiscard]] VkDevice getDevice() {
 			return myDecive;
 		}
@@ -73,5 +75,8 @@ namespace FF::Wrapper {
 
 		//逻辑设备
 		VkDevice myDecive{ VK_NULL_HANDLE };
+
+		//抗锯齿系数
+		VkSampleCountFlagBits mySampleCounts { VK_SAMPLE_COUNT_1_BIT };
 	};
 }

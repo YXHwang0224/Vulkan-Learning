@@ -4,7 +4,8 @@ namespace FF::Wrapper {
 
 	//构建device所需要的扩展
 	const std::vector<const char*> deciceRequiredExtensions = {
-		VK_KHR_SWAPCHAIN_EXTENSION_NAME		//构建交换链所需要的扩展
+		VK_KHR_SWAPCHAIN_EXTENSION_NAME,		//构建交换链所需要的扩展
+		VK_KHR_MAINTENANCE1_EXTENSION_NAME
 	};
 
 	Device::Device(Instance::Ptr instance, WindowSurface::Ptr surface) {
@@ -77,7 +78,10 @@ namespace FF::Wrapper {
 		VkPhysicalDeviceFeatures deviceFeatures;	//显卡特性
 		vkGetPhysicalDeviceFeatures(device, &deviceFeatures);	//获取显卡特性（纹理压缩，浮点数运算特性，多视口渲染
 
-		return deviceProp.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && deviceFeatures.geometryShader;
+		return deviceProp.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU &&
+			deviceFeatures.geometryShader &&
+			deviceFeatures.samplerAnisotropy
+			;
 	}
 
 	void Device::initQueueFamilies(VkPhysicalDevice device) {
@@ -131,6 +135,7 @@ namespace FF::Wrapper {
 		VkDeviceCreateInfo deviceCreatInfo = {};
 
 		VkPhysicalDeviceFeatures deviceFeatures = {};
+		deviceFeatures.samplerAnisotropy = VK_TRUE;
 		
 		deviceCreatInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 		deviceCreatInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
@@ -158,5 +163,24 @@ namespace FF::Wrapper {
 
 	bool Device::isQueueFamilyComplete() {
 		return myGraphicQueueFamily.has_value() && myPresentQueueFamily.has_value();
+	}
+
+	VkSampleCountFlagBits Device::getMaxUsableSampleCount() {
+		VkPhysicalDeviceProperties physicalDeviceProperties;
+		vkGetPhysicalDeviceProperties(myPhysicalDevice, &physicalDeviceProperties);
+
+		VkSampleCountFlags counts = std::min(
+			physicalDeviceProperties.limits.framebufferColorSampleCounts,
+			physicalDeviceProperties.limits.framebufferDepthSampleCounts
+		);
+
+		if (counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
+		if (counts & VK_SAMPLE_COUNT_32_BIT) { return VK_SAMPLE_COUNT_32_BIT; }
+		if (counts & VK_SAMPLE_COUNT_16_BIT) { return VK_SAMPLE_COUNT_16_BIT; }
+		if (counts & VK_SAMPLE_COUNT_8_BIT) { return VK_SAMPLE_COUNT_8_BIT; }
+		if (counts & VK_SAMPLE_COUNT_4_BIT) { return VK_SAMPLE_COUNT_4_BIT; }
+		if (counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
+
+		return VK_SAMPLE_COUNT_1_BIT;
 	}
 }

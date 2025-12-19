@@ -4,6 +4,7 @@ namespace FF::Wrapper {
 
 	static std::vector<char> readBinary(const std::string& fileName) {
 		std::ifstream file(fileName.c_str(), std::ios::ate | std::ios::binary | std::ios::in);
+		std::cout << fileName << std::endl;
 
 		if (!file) {
 			throw std::runtime_error("Error:failed to open shader file");

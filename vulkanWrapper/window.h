@@ -2,6 +2,10 @@
 
 #include "../base.h"
 
+namespace FF {
+	class Application;
+}
+
 namespace FF::Wrapper {
 
 	class Window {
@@ -23,11 +27,21 @@ namespace FF::Wrapper {
 			return myWindow;
 		}
 
+		void setApplication(const std::shared_ptr<Application>& application) {
+			myApplication = application;
+		}
+
+		void processEvents();		//处理事件
+
 	public:
 		bool myWindowResized{ false };
+		std::weak_ptr<Application> myApplication;
+
 	private:
-		GLFWwindow* myWindow{ nullptr };
+		
 		int myWidth{ 0 };
 		int myHeight{ 0 };
+		GLFWwindow* myWindow{ nullptr };
+		
 	};
 }

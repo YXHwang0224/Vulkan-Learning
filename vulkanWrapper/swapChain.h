@@ -5,6 +5,8 @@
 #include "window.h"
 #include "windowSurface.h"
 #include "renderpass.h"
+#include "image.h"
+#include "commandpool.h"
 
 namespace FF::Wrapper {
 
@@ -26,11 +28,11 @@ namespace FF::Wrapper {
 	class SwapChain {
 	public:
 		using Ptr = std::shared_ptr<SwapChain>;
-		static Ptr create(const Device::Ptr& device, const Window::Ptr& window, const WindowSurface::Ptr& surface) {
-			return std::make_shared<SwapChain>(device, window, surface);
+		static Ptr create(const Device::Ptr& device, const Window::Ptr& window, const WindowSurface::Ptr& surface, const CommandPool::Ptr& commandPool) {
+			return std::make_shared<SwapChain>(device, window, surface, commandPool);
 		}
 
-		SwapChain(const Device::Ptr& device, const Window::Ptr& window, const WindowSurface::Ptr& surface);
+		SwapChain(const Device::Ptr& device, const Window::Ptr& window, const WindowSurface::Ptr& surface, const CommandPool::Ptr& commandPool);
 
 		~SwapChain();
 
@@ -78,9 +80,14 @@ namespace FF::Wrapper {
 		std::vector<VkImageView> mySwapChainImageViews{};
 		std::vector<VkFramebuffer> mySwapChainFrameBuffers{};
 
+		std::vector<Image::Ptr> myDepthImages{};
+
+		std::vector<Image::Ptr> myMutiSampleImages{};
+
 		Device::Ptr myDevice{ nullptr };
 		Window::Ptr myWindow{ nullptr };
 		WindowSurface::Ptr mySurface{ nullptr };
+		CommandPool::Ptr myCommandPool{ nullptr };
 	};
 
 }

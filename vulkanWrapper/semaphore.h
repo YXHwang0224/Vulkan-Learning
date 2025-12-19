@@ -7,23 +7,23 @@ namespace FF::Wrapper {
 
 	//信号量创建只需要指定其类型
 
-	class semaphore {
+	class Semaphore {
 	public:
-		using Ptr = std::shared_ptr<semaphore>;
+		using Ptr = std::shared_ptr<Semaphore>;
 		static Ptr create(const Device::Ptr& device) {
-			return std::make_shared<semaphore>(device);
+			return std::make_shared<Semaphore>(device);
 		}
 
-		semaphore(const Device::Ptr& device);
+		Semaphore(const Device::Ptr& device);
 
-		~semaphore();
+		~Semaphore();
 
-		[[nodiscard]] auto getsemaphore() {
-			return mysemaphore;
+		[[nodiscard]] auto getSemaphore() {
+			return mySemaphore;
 		}
 
 	private:
-		VkSemaphore mysemaphore{ VK_NULL_HANDLE };
+		VkSemaphore mySemaphore{ VK_NULL_HANDLE };
 		Device::Ptr myDevice{ nullptr };
 	};
 }

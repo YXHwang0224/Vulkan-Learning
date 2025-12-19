@@ -30,6 +30,7 @@ namespace FF::Wrapper {
 		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		beginInfo.flags = flag;
 		beginInfo.pInheritanceInfo = &inheritance;
+		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
 
 		if (vkBeginCommandBuffer(myCommandBuffer, &beginInfo) != VK_SUCCESS) {
 			throw std::runtime_error("Error: failed to begin commandBuffer");
@@ -77,8 +78,24 @@ namespace FF::Wrapper {
 		}
 	}
 
-	void CommandBuffer::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, uint32_t copyInfoCount, const std::vector<VkBufferCopy>& copyInfos) {
+	void CommandBuffer::copyBufferToBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, uint32_t copyInfoCount, const std::vector<VkBufferCopy>& copyInfos) {
 		vkCmdCopyBuffer(myCommandBuffer, srcBuffer, dstBuffer, copyInfoCount, copyInfos.data());
+	}
+
+	void CommandBuffer::copyBufferToImage(VkBuffer srcBuffer, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t width, uint32_t height) {
+		VkBufferImageCopy bufferCopyRegion{};
+		bufferCopyRegion.bufferOffset = 0;
+
+		bufferCopyRegion.bufferRowLength = 0;
+		bufferCopyRegion.bufferImageHeight = 0;
+		bufferCopyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		bufferCopyRegion.imageSubresource.mipLevel = 0;
+		bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
+		bufferCopyRegion.imageSubresource.layerCount = 1;
+		bufferCopyRegion.imageOffset = { 0, 0, 0 };
+		bufferCopyRegion.imageExtent = { width, height, 1 };
+
+		vkCmdCopyBufferToImage(myCommandBuffer, srcBuffer, dstImage, dstImageLayout, 1, &bufferCopyRegion);
 	}
 
 	void CommandBuffer::submitSync(VkQueue queue, VkFence fence) {
@@ -92,4 +109,19 @@ namespace FF::Wrapper {
 		vkQueueWaitIdle(queue);
 	}
 
+	void CommandBuffer::transferImageLayout(
+		const VkImageMemoryBarrier& imageMemoryBarrier, 
+		VkPipelineStageFlags srcStageMask, 
+		VkPipelineStageFlags dstStageMask
+	) {
+		vkCmdPipelineBarrier(
+			myCommandBuffer, 
+			srcStageMask, 
+			dstStageMask, 
+			0, 
+			0, nullptr, 
+			0, nullptr, 
+			1, &imageMemoryBarrier
+		);
+	}
 }

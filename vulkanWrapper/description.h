@@ -2,6 +2,7 @@
 
 #include "../base.h"
 #include "buffer.h"
+#include "../texture/texture.h"
 
 namespace FF::Wrapper {
 
@@ -22,5 +23,6 @@ namespace FF::Wrapper {
 		VkShaderStageFlagBits myStage;
 
 		std::vector<Buffer::Ptr> myBuffers{};	//表示这个uniform在哪些buffer中存在
+		Texture::Ptr myTexture;		//表示这个uniform是从texture中读取的
 	};
 }

@@ -5,7 +5,7 @@ namespace FF::Wrapper {
 		myDevice = device;
 		myRenderPass = renderPass;
 
-		myVertexInputState.sType=VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+		myVertexInputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 		myAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 		myViewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 		myRasterState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -72,7 +72,7 @@ namespace FF::Wrapper {
 		pipelineCreateInfo.pViewportState = &myViewportState;
 		pipelineCreateInfo.pRasterizationState = &myRasterState;
 		pipelineCreateInfo.pMultisampleState = &mySampleState;
-		pipelineCreateInfo.pDepthStencilState = nullptr;
+		pipelineCreateInfo.pDepthStencilState = &myDepthStencilState;
 		pipelineCreateInfo.pColorBlendState = &myBlendState;
 		pipelineCreateInfo.layout = myLayout;
 		pipelineCreateInfo.renderPass = myRenderPass->getRenderPass();

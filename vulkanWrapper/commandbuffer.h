@@ -50,9 +50,13 @@ namespace FF::Wrapper {
 
 		void end();
 
-		void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, uint32_t copyInfoCount, const std::vector<VkBufferCopy>& copyInfos);
+		void copyBufferToBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, uint32_t copyInfoCount, const std::vector<VkBufferCopy>& copyInfos);
 
-		void submitSync(VkQueue queue, VkFence fence);
+		void copyBufferToImage(VkBuffer srcBuffer, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t width, uint32_t height);
+
+		void submitSync(VkQueue queue, VkFence fence = VK_NULL_HANDLE);
+
+		void transferImageLayout(const VkImageMemoryBarrier& imageMemoryBarrier, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask);
 
 		[[nodiscard]] auto getCommandBuffer() {
 			return myCommandBuffer;
