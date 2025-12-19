@@ -9,7 +9,10 @@ namespace FF {
 
 	}
 
-	void UniformManager::init(const Wrapper::Device::Ptr& device, int frameCount) {
+	void UniformManager::init(const Wrapper::Device::Ptr& device, const Wrapper::CommandPool::Ptr& commandPool, int frameCount) {
+		myDevice = device;
+		myCommandPool = commandPool;
+
 		auto VPParameter = Wrapper::UniformParameter::create();
 		VPParameter->myBinding = 0;
 		VPParameter->myCount = 1;
@@ -37,6 +40,15 @@ namespace FF {
 		}
 
 		myUniformParameters.push_back(objectParameter);
+
+		auto textureParameter = Wrapper::UniformParameter::create();;
+		textureParameter->myBinding = 2;
+		textureParameter->myCount = 1;
+		textureParameter->myDescriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		textureParameter->myStage=VK_SHADER_STAGE_FRAGMENT_BIT;
+		textureParameter->myTexture = Texture::create(device, commandPool, "assets/book/book.jpg");
+
+		myUniformParameters.push_back(textureParameter);
 
 		myDescriptorSetLayout = Wrapper::DescriptorSetLayout::create(device);
 		myDescriptorSetLayout->build(myUniformParameters);

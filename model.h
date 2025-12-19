@@ -1,15 +1,13 @@
 #pragma once
-
 #include "base.h"
 #include "vulkanWrapper/buffer.h"
 #include "vulkanWrapper/device.h"
+#include "vulkanWrapper/descriptorSet.h"
+#include "vulkanWrapper/description.h"
+
+
 
 namespace FF {
-
-	struct Vertex {
-		glm::vec3 myPosition;
-		glm::vec3 myColor;
-	};
 
 	class Model {
 	public:
@@ -19,129 +17,89 @@ namespace FF {
 		}
 
 		Model(const Wrapper::Device::Ptr& device) {
-			/*myDatas = {
-				{{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f }},
-				{{ 0.5f, 0.5f, 0.0f }, {0.0f, 1.0f, 0.0f}},
-				{{ -0.5f, 0.5f, 0.0f }, {0.0f, 0.0f, 1.0f}}
-			};*/
-
-			myPositions = {
-				0.0f, -0.5f, 0.0f,
-				0.5f, 0.5f, 0.0f,
-				-0.5f, 0.5f, 0.0f
-			};
-
-			myColors = {
-				1.0f, 0.0f, 0.0f,
-				0.0f, 1.0f, 0.0f,
-				0.0f, 0.0f, 1.0f
-			};
-
-			myIndexDatas = { 0,1,2 };
-
-			//myVertexBuffers = Wrapper::Buffer::createVertexBuffer(device, myDatas.size() * sizeof(Vertex), myDatas.data());
-
-			myPositionBuffers = Wrapper::Buffer::createVertexBuffer(device, myPositions.size() * sizeof(float), myPositions.data());
-			myColorBuffers = Wrapper::Buffer::createVertexBuffer(device, myColors.size() * sizeof(float), myColors.data());
-			
-			myIndexBuffers = Wrapper::Buffer::createIndexBuffer(device, myIndexDatas.size() * sizeof(unsigned int), myIndexDatas.data());
-
+			myUniform.myModelMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 		}
 
-		~Model(){}
+		~Model() {}
 
-		std::vector<VkVertexInputBindingDescription> getVertexInputBindingDescription(){
-			std::vector<VkVertexInputBindingDescription> bindingDescription{};
-			/*bindingDescription.resize(1);
+		void loadModel(const std::string& path, const Wrapper::Device::Ptr& device);
 
-			bindingDescription[0].binding = 0;
-			bindingDescription[0].stride = sizeof(Vertex);
-			bindingDescription[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;*/
+		//顶点数组buffer相关的信息
+		std::vector<VkVertexInputBindingDescription> getVertexInputBindingDescriptions() {
+			std::vector<VkVertexInputBindingDescription> bindingDes{};
 
-			bindingDescription.resize(2);
+			bindingDes.resize(2);
 
-			bindingDescription[0].binding = 0;
-			bindingDescription[0].stride = sizeof(float) * 3;
-			bindingDescription[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+			bindingDes[0].binding = 0;
+			bindingDes[0].stride = sizeof(float) * 3;
+			bindingDes[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-			bindingDescription[1].binding = 1;
-			bindingDescription[1].stride = sizeof(float) * 3;
-			bindingDescription[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+			bindingDes[1].binding = 1;
+			bindingDes[1].stride = sizeof(float) * 2;
+			bindingDes[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-			return bindingDescription;
+			return bindingDes;
 		}
 
-		//Attribute相关信息
-		std::vector<VkVertexInputAttributeDescription> getAttributeDescription() {
-			std::vector<VkVertexInputAttributeDescription> attributeDescription{};
-			attributeDescription.resize(2);
+		//Attribute相关信息，与VertexShader里面的location相关
+		std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {
+			std::vector<VkVertexInputAttributeDescription> attributeDes{};
+			attributeDes.resize(2);
 
-			attributeDescription[0].binding = 0;
-			attributeDescription[0].location = 0;
-			attributeDescription[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-			//attributeDescription[0].offset = offsetof(Vertex, myPosition);
-			attributeDescription[0].offset = 0;
+			attributeDes[0].binding = 0;
+			attributeDes[0].location = 0;
+			attributeDes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+			attributeDes[0].offset = 0;
 
-			//attributeDescription[0].binding = 0;
-			attributeDescription[1].binding = 1;
-			attributeDescription[1].location = 1;
-			attributeDescription[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-			//attributeDescription[1].offset = offsetof(Vertex, myColor);
-			attributeDescription[1].offset = 0;
+			attributeDes[1].binding = 1;
+			attributeDes[1].location = 2;
+			attributeDes[1].format = VK_FORMAT_R32G32_SFLOAT;
+			attributeDes[1].offset = 0;
 
-			return attributeDescription;
+			return attributeDes;
 		}
 
-		/*[[nodiscard]] auto getVertexBuffer() const {
-			return myVertexBuffers;
-		}*/
+		//[[nodiscard]] auto getVertexBuffer() const { return mVertexBuffer; }
 
 		[[nodiscard]] auto getVertexBuffers() const {
-			std::vector<VkBuffer> buffers{ myPositionBuffers->getBuffer(),myColorBuffers->getBuffer() };
-		
+			std::vector<VkBuffer> buffers{ myPositionBuffers->getBuffer(), myUVBuffers->getBuffer() };
+
 			return buffers;
 		}
 
-		void setModelMatrix(const glm::mat4 matrix) {
-			myUniform.myModelMatrix = matrix;
-		}
+		[[nodiscard]] auto getIndexBuffer() const { return myIndexBuffers; }
+
+		[[nodiscard]] auto getIndexCount() const { return myIndexDatas.size(); }
+
+		[[nodiscard]] auto getUniform() const { return myUniform; }
+
+		void setModelMatrix(const glm::mat4 matrix) { myUniform.myModelMatrix = matrix; }
 
 		void update() {
-			glm::mat4 rotateMatrix = glm::mat4(1.0f);
-			rotateMatrix = glm::rotate(rotateMatrix, glm::radians(myAngle), glm::vec3(0.0f, 0.0f, 1.0f));
-			myUniform.myModelMatrix = rotateMatrix;
+			/*	glm::mat4 rotateMatrix = glm::mat4(1.0f);
+				rotateMatrix = glm::rotate(rotateMatrix, glm::radians(mAngle), glm::vec3(0.0f, 0.0f, 1.0f));
+				mUniform.mModelMatrix = rotateMatrix;
 
-			myAngle += 0.001f;
+				mAngle += 0.01f;*/
 		}
-
-		[[nodiscard]] auto getIndexBuffer() const {
-			return myIndexBuffers;
-		}
-
-		[[nodiscard]] auto getIndexCount() const {
-			return myIndexDatas.size();
-		}
-
-		[[nodiscard]] auto getUniform() const {
-			return myUniform;
-		}
-
 	private:
-		//std::vector<Vertex> myDatas{};
+		//std::vector<Vertex> mDatas{};
 		std::vector<float> myPositions{};
 		std::vector<float> myColors{};
-
 		std::vector<unsigned int> myIndexDatas{};
+		std::vector<float> myUVs{};
 
-		//Wrapper::Buffer::Ptr myVertexBuffers{ nullptr };
+		//Wrapper::Buffer::Ptr mVertexBuffer{ nullptr };
 
 		Wrapper::Buffer::Ptr myPositionBuffers{ nullptr };
-		Wrapper::Buffer::Ptr myColorBuffers{ nullptr };
+		Wrapper::Buffer::Ptr myUVBuffers{ nullptr };
 
 		Wrapper::Buffer::Ptr myIndexBuffers{ nullptr };
 
+
 		ObjectUniform myUniform;
 
-		float myAngle = 0.0f;
+		float myAngle{ 0.0f };
+
 	};
 }

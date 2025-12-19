@@ -13,20 +13,29 @@
 #include "vulkanWrapper/commandbuffer.h"
 #include "vulkanWrapper/semaphore.h"
 #include "vulkanWrapper/fence.h"
+#include "vulkanWrapper/image.h"
+#include "vulkanWrapper/sampler.h"
+
+#include "texture/texture.h"
 
 #include "uniformManager.h"
 #include "model.h"
+#include "camera.h"
 
 namespace FF {
 
-	class Application		//入口类
+	class Application:public std::enable_shared_from_this<Application>	//入口类
 	{
 	public:
 		Application() = default;
 
 		~Application() = default;
 
-		void Run();
+		void run();
+		
+		void onMouseMove(double x, double y);
+
+		void onKeyDown(CAMERA_MOVE moveDirection);
 
 	private:
 		void initWindow();
@@ -42,8 +51,9 @@ namespace FF {
 	private:
 		void createPipeline();
 		void createRenderPass();
-		void createCommandBuffer();
+		void createCommandBuffers();
 		void createSemaphore();
+		
 		//当窗口大小发生变换时，重建交换链，相关的Frame，View...都会变换
 		void recreateSwapChain();
 		void cleanupSwapChain();
@@ -66,14 +76,15 @@ namespace FF {
 
 		std::vector<Wrapper::CommandBuffer::Ptr> myCommandBuffers{};
 
-		std::vector<Wrapper::semaphore::Ptr> myImageAvaliablesemaphores;
-		std::vector<Wrapper::semaphore::Ptr> myRenderFinishedsemaphores;
+		std::vector<Wrapper::Semaphore::Ptr> myImageAvailableSemaphores;
+		std::vector<Wrapper::Semaphore::Ptr> myRenderFinishedSemaphores;
 		std::vector<Wrapper::Fence::Ptr> myFences;
 
-		UniformManager::Ptr myUniformManger{ nullptr };
+		UniformManager::Ptr myUniformManager{ nullptr };
 
 		Model::Ptr myModel{ nullptr };
 
 		VPMatrices myVPMatrices;
+		Camera myCamera;
 	};
 }

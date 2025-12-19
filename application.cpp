@@ -1,16 +1,34 @@
 #include "application.h"
+#include "vulkanWrapper/image.h"
+
 
 namespace FF {
 
-	void Application::Run() {
+	void Application::run() {
 		initWindow();
 		initVulkan();
 		mainLoop();
 		cleanUp();
 	}
 
+	void Application::onMouseMove(double xpos, double ypos) {
+		myCamera.onMouseMove(xpos, ypos);
+	}
+
+	void Application::onKeyDown(CAMERA_MOVE moveDirection) {
+		myCamera.move(moveDirection);
+	}
+
 	void Application::initWindow() {
 		myWindow = Wrapper::Window::create(myWidth, myHeight);
+		myWindow->setApplication(shared_from_this());
+
+		myCamera.lookAt(glm::vec3(0.0f, 0.0f, 20.0f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		myCamera.update();
+
+		myCamera.setPerpective(45.0f, (float)myWidth / (float)myHeight, 0.1f, 100.0f);
+
+		myCamera.setSpeed(0.05f);
 	}
 
 	void Application::initVulkan() {
@@ -19,7 +37,9 @@ namespace FF {
 
 		myDevice = Wrapper::Device::create(myInstance, mySurface);
 
-		mySwapChain = Wrapper::SwapChain::create(myDevice, myWindow, mySurface);
+		myCommandPool = Wrapper::CommandPool::create(myDevice);
+
+		mySwapChain = Wrapper::SwapChain::create(myDevice, myWindow, mySurface, myCommandPool);
 		myWidth = mySwapChain->getExtent().width;
 		myHeight = mySwapChain->getExtent().height;
 
@@ -28,196 +48,97 @@ namespace FF {
 
 		mySwapChain->createFrameBuffer(myRenderPass);
 
-		myUniformManger = UniformManager::create();
-		myUniformManger->init(myDevice, mySwapChain->getImageCount());
 
+
+		//descriptor ===========================
+		myUniformManager = UniformManager::create();
+		myUniformManager->init(myDevice, myCommandPool, mySwapChain->getImageCount());
+
+		//创建模型
 		myModel = Model::create(myDevice);
+		myModel->loadModel("assets/book/book.obj", myDevice);
 
 		myPipeline = Wrapper::Pipeline::create(myDevice, myRenderPass);
 		createPipeline();
 
-		myCommandPool = Wrapper::CommandPool::create(myDevice);
-
 		myCommandBuffers.resize(mySwapChain->getImageCount());
-		createCommandBuffer();
+
+		createCommandBuffers();
 
 		createSemaphore();
+
+
 	}
-
-	void Application::mainLoop() {
-		while (!myWindow->shouldClose()) {
-			myWindow->pollEvents();		//分发鼠标键盘等信息
-
-			myModel->update();
-
-			myUniformManger->update(myVPMatrices, myModel->getUniform(), myCurrentFrame);
-
-			render();
-		}
-
-		//等待device所有操作结束后再清理
-		vkDeviceWaitIdle(myDevice->getDevice());
-	}
-
-	void Application::render() {
-		//等待当前要提交的commandbuffer执行完毕
-		myFences[myCurrentFrame]->block();
-
-		//首先获取交换链的下一帧
-		uint32_t imageIndex{ 0 };
-		VkResult result = vkAcquireNextImageKHR(		//第三个参数为超时时间
-			myDevice->getDevice(),
-			mySwapChain->getSwapChain(),
-			UINT64_MAX,
-			myImageAvaliablesemaphores[myCurrentFrame]->getsemaphore(),
-			VK_NULL_HANDLE,
-			&imageIndex);
-
-		//检测窗体发生尺寸变换
-		if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-			recreateSwapChain();
-			myWindow->myWindowResized = false;
-		}
-		//VK_SUBOPTIMAL_KHR：得到了一张认为可用的图像，但是表面格式并不完全匹配
-		else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-			throw std::runtime_error("Error: failes to acquire next image");
-		}
-
-		//构建提交信息
-		VkSubmitInfo submitInfo{};
-		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-		//同步信息，渲染对于显示图像的依赖，显示完毕后才能输出颜色
-		VkSemaphore waitsemaphores[] = { myImageAvaliablesemaphores[myCurrentFrame]->getsemaphore() };
-		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-
-		submitInfo.waitSemaphoreCount = 1;
-		submitInfo.pWaitSemaphores = waitsemaphores;
-		submitInfo.pWaitDstStageMask = waitStages;
-
-		//指定提交哪些命令
-		auto commandBuffer = myCommandBuffers[imageIndex]->getCommandBuffer();
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &commandBuffer;
-
-		//执行完毕后激发哪些semaphore
-		VkSemaphore signalsemaphore[] = { myRenderFinishedsemaphores[myCurrentFrame]->getsemaphore() };
-		submitInfo.signalSemaphoreCount = 1;
-		submitInfo.pSignalSemaphores = signalsemaphore;
-
-		myFences[myCurrentFrame]->resetFence();
-
-		if (vkQueueSubmit(myDevice->getGraphicQueue(), 1, &submitInfo, myFences[myCurrentFrame]->getFence()) != VK_SUCCESS) {
-			throw std::runtime_error("Error: failed to submit render command");
-		}
-
-		//构建显示信息
-		VkPresentInfoKHR presentinfo{};
-		presentinfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-
-		presentinfo.waitSemaphoreCount = 1;
-		presentinfo.pWaitSemaphores = signalsemaphore;
-
-		//定义显示时使用的交换链信息
-		VkSwapchainKHR swapChains[] = { mySwapChain->getSwapChain() };
-		presentinfo.swapchainCount = 1;
-		presentinfo.pSwapchains = swapChains;
-
-		presentinfo.pImageIndices = &imageIndex;
-
-		result = vkQueuePresentKHR(myDevice->getPresentQueue(), &presentinfo);
-
-		//由于驱动程序不一定精确，所以我们还需要使用Window中定义的标志位进行判断
-		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || myWindow->myWindowResized) {
-			recreateSwapChain();
-			myWindow->myWindowResized = false;
-		}
-		else if (result != VK_SUCCESS) {
-			throw std::runtime_error("Error: failed to present");
-		}
-
-		myCurrentFrame = (myCurrentFrame + 1) % mySwapChain->getImageCount();
-	}
-
-	void Application::cleanUp() {
-		myPipeline.reset();
-		myRenderPass.reset();
-		mySwapChain.reset();
-		myDevice.reset();
-		mySurface.reset();
-		myInstance.reset();
-		myWindow->~Window();
-	}
-
 
 	void Application::createPipeline() {
 		//设置视口
 		VkViewport viewport = {};
 		viewport.x = 0.0f;
-		viewport.y = 0.0f;
+		viewport.y = (float)myHeight;
 		viewport.width = (float)myWidth;
-		viewport.height = (float)myHeight;
-		//在屏幕坐标中，z轴范围为0到1
+		viewport.height = -(float)myHeight;
 		viewport.minDepth = 0.0f;
 		viewport.maxDepth = 1.0f;
 
-		//设置剪裁
 		VkRect2D scissor = {};
-		scissor.offset = { 0,0 };
+		scissor.offset = { 0, 0 };
 		scissor.extent = { myWidth, myHeight };
 
-		//设置视口和剪裁至pipeline中
 		myPipeline->setViewports({ viewport });
 		myPipeline->setScissors({ scissor });
 
+
 		//设置shader
 		std::vector<Wrapper::Shader::Ptr> shaderGroup{};
-		auto vertexShader = Wrapper::Shader::create(myDevice, "shaders/vs.spv", VK_SHADER_STAGE_VERTEX_BIT, "main");
-		shaderGroup.push_back(vertexShader);
-		auto fragmentShader = Wrapper::Shader::create(myDevice, "shaders/fs.spv", VK_SHADER_STAGE_FRAGMENT_BIT, "main");
-		shaderGroup.push_back(fragmentShader);
+
+		auto shaderVertex = Wrapper::Shader::create(myDevice, "shaders/vs.spv", VK_SHADER_STAGE_VERTEX_BIT, "main");
+		shaderGroup.push_back(shaderVertex);
+
+		auto shaderFragment = Wrapper::Shader::create(myDevice, "shaders/fs.spv", VK_SHADER_STAGE_FRAGMENT_BIT, "main");
+		shaderGroup.push_back(shaderFragment);
 
 		myPipeline->setShaderGroup(shaderGroup);
 
-		//顶点排布模式
-		auto vertexBindingDescription = myModel->getVertexInputBindingDescription();
-		auto attributeDescription = myModel->getAttributeDescription();
+		//顶点的排布模式
+		auto vertexBindingDes = myModel->getVertexInputBindingDescriptions();
+		auto attributeDes = myModel->getAttributeDescriptions();
 
-		myPipeline->myVertexInputState.vertexBindingDescriptionCount = static_cast<uint32_t>(vertexBindingDescription.size());
-		myPipeline->myVertexInputState.pVertexBindingDescriptions = vertexBindingDescription.data();
-		myPipeline->myVertexInputState.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescription.size());
-		myPipeline->myVertexInputState.pVertexAttributeDescriptions = attributeDescription.data();
+		myPipeline->myVertexInputState.vertexBindingDescriptionCount = vertexBindingDes.size();
+		myPipeline->myVertexInputState.pVertexBindingDescriptions = vertexBindingDes.data();
+		myPipeline->myVertexInputState.vertexAttributeDescriptionCount = attributeDes.size();
+		myPipeline->myVertexInputState.pVertexAttributeDescriptions = attributeDes.data();
 
 		//图元装配
 		myPipeline->myAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-		myPipeline->myAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;		//设置图元拓扑结构，形成的图元
-		myPipeline->myAssemblyState.primitiveRestartEnable = VK_FALSE;			//不重启图元
+		myPipeline->myAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		myPipeline->myAssemblyState.primitiveRestartEnable = VK_FALSE;
 
 		//光栅化设置
 		myPipeline->myRasterState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-		myPipeline->myRasterState.polygonMode = VK_POLYGON_MODE_FILL;		//解释光栅化图元选项，其他选项需要开启GPU特性
-		myPipeline->myRasterState.lineWidth = 1.0f;		//大于1需要开启GPU特性
-		myPipeline->myRasterState.cullMode = VK_CULL_MODE_BACK_BIT;			//背面剔除
-		myPipeline->myRasterState.frontFace = VK_FRONT_FACE_CLOCKWISE;		//定义正反面
+		myPipeline->myRasterState.polygonMode = VK_POLYGON_MODE_FILL;//其他模式需要开启gpu特性
+		myPipeline->myRasterState.lineWidth = 1.0f;//大于1需要开启gpu特性
+		myPipeline->myRasterState.cullMode = VK_CULL_MODE_BACK_BIT;
+		myPipeline->myRasterState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 
-		myPipeline->myRasterState.depthBiasEnable = VK_FALSE;			//改变深度信息
+		myPipeline->myRasterState.depthBiasEnable = VK_FALSE;
 		myPipeline->myRasterState.depthBiasConstantFactor = 0.0f;
 		myPipeline->myRasterState.depthBiasClamp = 0.0f;
 		myPipeline->myRasterState.depthBiasSlopeFactor = 0.0f;
 
 		//多重采样
 		myPipeline->mySampleState.sampleShadingEnable = VK_FALSE;
-		myPipeline->mySampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+		myPipeline->mySampleState.rasterizationSamples = myDevice->getMaxUsableSampleCount();
 		myPipeline->mySampleState.minSampleShading = 1.0f;
 		myPipeline->mySampleState.pSampleMask = nullptr;
 		myPipeline->mySampleState.alphaToCoverageEnable = VK_FALSE;
 		myPipeline->mySampleState.alphaToOneEnable = VK_FALSE;
 
 		//深度与模板测试
-
+		myPipeline->myDepthStencilState.depthTestEnable = VK_TRUE;
+		myPipeline->myDepthStencilState.depthWriteEnable = VK_TRUE;
+		myPipeline->myDepthStencilState.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 
 		//颜色混合
-
 
 		//这个是颜色混合掩码，得到的混合结果，按照通道与掩码进行AND操作，输出
 		VkPipelineColorBlendAttachmentState blendAttachment{};
@@ -227,9 +148,9 @@ namespace FF {
 			VK_COLOR_COMPONENT_A_BIT;
 
 		blendAttachment.blendEnable = VK_FALSE;
-		blendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;	//这个参数表示将目标颜色与某种颜色相乘后输出，使用该参数设置表示直接使用原结果输出
-		blendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;	//表示不混合
-		blendAttachment.colorBlendOp = VK_BLEND_OP_ADD;		//表示混合运算以相加进行
+		blendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+		blendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+		blendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
 
 		blendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
 		blendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
@@ -237,11 +158,10 @@ namespace FF {
 
 		myPipeline->pushBlendAttachment(blendAttachment);
 
-		//blending的差异化接口，在application类中设定
-		//1.blend有两种方式，其一如上，进行alpha为基础的运算，第二种为逻辑位运算，用图像本来的结果叠加处理
-		//2.如果开启了logicOp，那么上方设置的alpha为基础的运算失效
-		//3.ColorWrite掩码，仍然有效，即使开启了logicOp
-		//4.因为我们可能会有多个FrameBuffer输出，所以可能需要多个BlendAttachment
+		//1 blend有两种计算方式，第一种如上所述，进行alpha为基础的计算，第二种进行位运算
+		//2 如果开启了logicOp，那么上方设置的alpha为基础的运算，失灵
+		//3 ColorWrite掩码，仍然有效，即便开启了logicOP
+		//4 因为，我们可能会有多个FrameBuffer输出，所以可能需要多个BlendAttachment
 		myPipeline->myBlendState.logicOpEnable = VK_FALSE;
 		myPipeline->myBlendState.logicOp = VK_LOGIC_OP_COPY;
 
@@ -254,7 +174,7 @@ namespace FF {
 		//uniform的传递
 		myPipeline->myLayoutState.setLayoutCount = 1;
 
-		auto layout = myUniformManger->getDescriptorLayout()->getLayout();
+		auto layout = myUniformManager->getDescriptorLayout()->getLayout();
 		myPipeline->myLayoutState.pSetLayouts = &layout;
 		myPipeline->myLayoutState.pushConstantRangeCount = 0;
 		myPipeline->myLayoutState.pPushConstantRanges = nullptr;
@@ -263,36 +183,76 @@ namespace FF {
 	}
 
 	void Application::createRenderPass() {
-		//输入画布的描述
-		VkAttachmentDescription attachmentDes{};
-		attachmentDes.format = mySwapChain->getFormat();
-		attachmentDes.samples = VK_SAMPLE_COUNT_1_BIT;
-		attachmentDes.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;		//输入时如果有残余数据，则清空
-		attachmentDes.storeOp = VK_ATTACHMENT_STORE_OP_STORE;	//输出时如果有残余数据，则保留
-		attachmentDes.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		attachmentDes.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachmentDes.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		attachmentDes.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;	//最终出RenderPass时的格式
+		//0：最终输出图片 1：Resolve图片（MutiSample） 2：Depth图片
 
-		myRenderPass->addAttachment(attachmentDes);
+		//0号位：是SwapChain原来那张图片，是Resolve的目标点，即需要设置到SubPass的Resolve当中
+		VkAttachmentDescription finalAttachmentDes{};
+		finalAttachmentDes.format = mySwapChain->getFormat();
+		finalAttachmentDes.samples = VK_SAMPLE_COUNT_1_BIT;
+		finalAttachmentDes.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		finalAttachmentDes.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		finalAttachmentDes.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		finalAttachmentDes.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		finalAttachmentDes.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		finalAttachmentDes.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-		//对于画布的索引设置及格式要求
-		VkAttachmentReference attachmentReference{};
-		attachmentReference.attachment = 0;
-		attachmentReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;	//表示GPU在将该附着加入SubPass时将其转为什么格式
+		myRenderPass->addAttachment(finalAttachmentDes);
 
-		//创建SubPass
+		//1号位：被Resolve的图片，即多重采样的源头图片，也即颜色输出的目标图片
+		VkAttachmentDescription MutiAttachmentDes{};
+		MutiAttachmentDes.format = mySwapChain->getFormat();
+		MutiAttachmentDes.samples = myDevice->getMaxUsableSampleCount();
+		MutiAttachmentDes.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		MutiAttachmentDes.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		MutiAttachmentDes.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		MutiAttachmentDes.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		MutiAttachmentDes.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		MutiAttachmentDes.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		myRenderPass->addAttachment(MutiAttachmentDes);
+
+
+		//3号位：深度缓存attachment
+		VkAttachmentDescription depthAttachmentDes{};
+		depthAttachmentDes.format = Wrapper::Image::findDepthFormat(myDevice);
+		depthAttachmentDes.samples = myDevice->getMaxUsableSampleCount();
+		depthAttachmentDes.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		depthAttachmentDes.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		depthAttachmentDes.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		depthAttachmentDes.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		depthAttachmentDes.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		depthAttachmentDes.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		myRenderPass->addAttachment(depthAttachmentDes);
+
+		//对于画布的索引设置以及格式要求
+		VkAttachmentReference finalAttachmentRef{};
+		finalAttachmentRef.attachment = 0;
+		finalAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		VkAttachmentReference mutiAttachmentRef{};
+		mutiAttachmentRef.attachment = 1;
+		mutiAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		VkAttachmentReference depthAttachmentRef{};
+		depthAttachmentRef.attachment = 2;
+		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		//创建子流程
 		Wrapper::SubPass subPass{};
-		subPass.addColorAttachmentReference(attachmentReference);
-		subPass.buildSubPassDesciption();
+		subPass.addColorAttachmentReference(mutiAttachmentRef);
+		subPass.setDepthStencilAttachmentReference(depthAttachmentRef);
+		subPass.setResolveAttachmentReference(finalAttachmentRef);
+
+		subPass.buildSubPassDescription();
 
 		myRenderPass->addSubPass(subPass);
 
-		//SubPass的依赖关系
+		//子流程之间的依赖关系
 		VkSubpassDependency dependency{};
-		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;	//上一个流程为虚拟流程
+		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
 		dependency.dstSubpass = 0;
-		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;	//上一个subpass输出到画布上时开启下一个
+		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 		dependency.srcAccessMask = 0;
 		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
@@ -302,9 +262,7 @@ namespace FF {
 		myRenderPass->buildRenderPass();
 	}
 
-	void Application::createCommandBuffer() {
-		myCommandBuffers.resize(mySwapChain->getImageCount());
-
+	void Application::createCommandBuffers() {
 		for (int i = 0; i < mySwapChain->getImageCount(); ++i) {
 			myCommandBuffers[i] = Wrapper::CommandBuffer::create(myDevice, myCommandPool);
 
@@ -314,32 +272,54 @@ namespace FF {
 			renderBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 			renderBeginInfo.renderPass = myRenderPass->getRenderPass();
 			renderBeginInfo.framebuffer = mySwapChain->getFrameBuffer(i);
-			renderBeginInfo.renderArea.offset = { 0,0 };	//绘制起始点，从（0，0）点开始
+			renderBeginInfo.renderArea.offset = { 0, 0 };
 			renderBeginInfo.renderArea.extent = mySwapChain->getExtent();
 
-			VkClearValue clearColor = { 0.0f, 0.0f, 0.0f };	//每帧绘制前，使用何种颜色清理画布
-			renderBeginInfo.clearValueCount = 1;
-			renderBeginInfo.pClearValues = &clearColor;
+			//0：final   1：muti   2：depth
+			std::vector< VkClearValue> clearColors{};
+			VkClearValue finalClearColor{};
+			finalClearColor.color = { 1.0f, 1.0f, 1.0f, 1.0f };
+			clearColors.push_back(finalClearColor);
+
+			VkClearValue mutiClearColor{};
+			mutiClearColor.color = { 1.0f, 1.0f, 1.0f, 1.0f };
+			clearColors.push_back(mutiClearColor);
+
+			VkClearValue depthClearColor{};
+			depthClearColor.depthStencil = { 1.0f, 0 };
+			clearColors.push_back(depthClearColor);
+
+			renderBeginInfo.clearValueCount = static_cast<uint32_t>(clearColors.size());
+			renderBeginInfo.pClearValues = clearColors.data();
+
 
 			myCommandBuffers[i]->beginRenderPass(renderBeginInfo);
+
 			myCommandBuffers[i]->bindGraphicPipeline(myPipeline->getPipeline());
-			myCommandBuffers[i]->bindDescriptorSet(myPipeline->getLayout(), myUniformManger->getDescriptorSet(myCurrentFrame));
+
+			myCommandBuffers[i]->bindDescriptorSet(myPipeline->getLayout(), myUniformManager->getDescriptorSet(myCurrentFrame));
+
 			//myCommandBuffers[i]->bindVertexBuffer({ myModel->getVertexBuffer()->getBuffer() });
+
 			myCommandBuffers[i]->bindVertexBuffer(myModel->getVertexBuffers());
+
 			myCommandBuffers[i]->bindIndexBuffer(myModel->getIndexBuffer()->getBuffer());
-			myCommandBuffers[i]->drawIndex(static_cast<uint32_t>(myModel->getIndexCount()));
+
+			myCommandBuffers[i]->drawIndex(myModel->getIndexCount());
+
 			myCommandBuffers[i]->endRenderPass();
+
 			myCommandBuffers[i]->end();
 		}
 	}
 
 	void Application::createSemaphore() {
 		for (int i = 0; i < mySwapChain->getImageCount(); ++i) {
-			auto imagesemaphore = Wrapper::semaphore::create(myDevice);
-			myImageAvaliablesemaphores.push_back(imagesemaphore);
+			auto imageSemaphore = Wrapper::Semaphore::create(myDevice);
+			myImageAvailableSemaphores.push_back(imageSemaphore);
 
-			auto rendersemaphore = Wrapper::semaphore::create(myDevice);
-			myRenderFinishedsemaphores.push_back(rendersemaphore);
+			auto renderSemaphore = Wrapper::Semaphore::create(myDevice);
+			myRenderFinishedSemaphores.push_back(renderSemaphore);
 
 			auto fence = Wrapper::Fence::create(myDevice);
 			myFences.push_back(fence);
@@ -358,7 +338,7 @@ namespace FF {
 
 		cleanupSwapChain();
 
-		mySwapChain = Wrapper::SwapChain::create(myDevice, myWindow, mySurface);
+		mySwapChain = Wrapper::SwapChain::create(myDevice, myWindow, mySurface, myCommandPool);
 		myWidth = mySwapChain->getExtent().width;
 		myHeight = mySwapChain->getExtent().height;
 
@@ -371,7 +351,8 @@ namespace FF {
 		createPipeline();
 
 		myCommandBuffers.resize(mySwapChain->getImageCount());
-		createCommandBuffer();
+
+		createCommandBuffers();
 
 		createSemaphore();
 	}
@@ -381,8 +362,118 @@ namespace FF {
 		myCommandBuffers.clear();
 		myPipeline.reset();
 		myRenderPass.reset();
-		myImageAvaliablesemaphores.clear();
-		myRenderFinishedsemaphores.clear();
+		myImageAvailableSemaphores.clear();
+		myRenderFinishedSemaphores.clear();
 		myFences.clear();
+	}
+
+
+	void Application::mainLoop() {
+		while (!myWindow->shouldClose()) {
+			myWindow->pollEvents();
+			myWindow->processEvents();
+
+			//myModel->update();
+
+			myVPMatrices.myViewMatrix = myCamera.getViewMatrix();
+			myVPMatrices.myProjectionMatrix = myCamera.getProjectMatrix();
+
+
+			myUniformManager->update(myVPMatrices, myModel->getUniform(), myCurrentFrame);
+
+			render();
+		}
+
+		vkDeviceWaitIdle(myDevice->getDevice());
+	}
+
+	void Application::render() {
+		//等待当前要提交的CommandBuffer执行完毕
+		myFences[myCurrentFrame]->block();
+
+		//获取交换链当中的下一帧
+		uint32_t imageIndex{ 0 };
+		VkResult result = vkAcquireNextImageKHR(
+			myDevice->getDevice(),
+			mySwapChain->getSwapChain(),
+			UINT64_MAX,
+			myImageAvailableSemaphores[myCurrentFrame]->getSemaphore(),
+			VK_NULL_HANDLE,
+			&imageIndex);
+
+		//窗体发生了尺寸变化
+		if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+			recreateSwapChain();
+			myWindow->myWindowResized = false;
+		}//VK_SUBOPTIMAL_KHR得到了一张认为可用的图像，但是表面格式不一定匹配
+		else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+			throw std::runtime_error("Error: failed to acquire next image");
+		}
+
+		//构建提交信息
+		VkSubmitInfo submitInfo{};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+
+		//同步信息，渲染对于显示图像的依赖，显示完毕后，才能输出颜色
+		VkSemaphore waitSemaphores[] = { myImageAvailableSemaphores[myCurrentFrame]->getSemaphore() };
+		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+
+		submitInfo.waitSemaphoreCount = 1;
+		submitInfo.pWaitSemaphores = waitSemaphores;
+		submitInfo.pWaitDstStageMask = waitStages;
+
+		//指定提交哪些命令
+		auto commandBuffer = myCommandBuffers[imageIndex]->getCommandBuffer();
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &commandBuffer;
+
+		VkSemaphore signalSemaphores[] = { myRenderFinishedSemaphores[myCurrentFrame]->getSemaphore() };
+		submitInfo.signalSemaphoreCount = 1;
+		submitInfo.pSignalSemaphores = signalSemaphores;
+
+		myFences[myCurrentFrame]->resetFence();
+		if (vkQueueSubmit(myDevice->getGraphicQueue(), 1, &submitInfo, myFences[myCurrentFrame]->getFence()) != VK_SUCCESS) {
+			throw std::runtime_error("Error:failed to submit renderCommand");
+		}
+
+		VkPresentInfoKHR presentInfo{};
+		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+		presentInfo.waitSemaphoreCount = 1;
+		presentInfo.pWaitSemaphores = signalSemaphores;
+
+		VkSwapchainKHR swapChains[] = { mySwapChain->getSwapChain() };
+		presentInfo.swapchainCount = 1;
+		presentInfo.pSwapchains = swapChains;
+
+		presentInfo.pImageIndices = &imageIndex;
+
+		result = vkQueuePresentKHR(myDevice->getPresentQueue(), &presentInfo);
+
+		//由于驱动程序不一定精准，所以我们还需要用自己的标志位判断
+		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || myWindow->myWindowResized) {
+			recreateSwapChain();
+			myWindow->myWindowResized = false;
+		}
+		else if (result != VK_SUCCESS) {
+			throw std::runtime_error("Error: failed to present");
+		}
+
+		myCurrentFrame = (myCurrentFrame + 1) % mySwapChain->getImageCount();
+	}
+
+	void Application::cleanUp() {
+
+		myPipeline.reset();
+
+		myRenderPass.reset();
+
+		mySwapChain.reset();
+
+		myDevice.reset();
+		mySurface.reset();
+		myInstance.reset();
+		myWindow.reset();
 	}
 }

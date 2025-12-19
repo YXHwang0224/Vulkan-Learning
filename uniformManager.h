@@ -6,6 +6,7 @@
 #include "vulkanWrapper/descriptorPool.h"
 #include "vulkanWrapper/description.h"
 #include "vulkanWrapper/descriptorSet.h"
+#include "vulkanWrapper/commandpool.h"
 #include "base.h"
 
 namespace FF {
@@ -20,7 +21,7 @@ namespace FF {
 
 		~UniformManager();
 
-		void init(const Wrapper::Device::Ptr& device, int frameCount);
+		void init(const Wrapper::Device::Ptr& device, const Wrapper::CommandPool::Ptr& commandPool, int frameCount);
 
 		void update(const VPMatrices& vpMatrix, const ObjectUniform& objectUniform, const int& frameCount);
 
@@ -37,6 +38,8 @@ namespace FF {
 	private:
 		std::vector<Wrapper::UniformParameter::Ptr> myUniformParameters;
 
+		Wrapper::Device::Ptr myDevice{ nullptr };
+		Wrapper::CommandPool::Ptr myCommandPool{ nullptr };
 		Wrapper::DescriptorSetLayout::Ptr myDescriptorSetLayout{ nullptr };
 		Wrapper::DescriptorPool::Ptr myDescriptorPool{ nullptr };
 		Wrapper::DescriptorSet::Ptr myDescriptorSet{ nullptr };
